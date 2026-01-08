@@ -78,9 +78,25 @@ ansible-playbook playbook.yml $ANSIBLE_EXTRA_VARS
 echo ""
 echo -e "${GREEN}[5/5] Installation complete!${NC}"
 echo ""
-echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║ ✅ Clawdbot installed successfully!   ║${NC}"
-echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
+
+# Clawdbot ASCII Art
+cat << 'LOBSTER'
+[0;31m    ╔════════════════════════════════════════╗
+    ║                                        ║
+    ║[0;33m      >   <     [0;36m Welcome to[0m          ║
+    ║[0;31m     ┌─────┐    [0;36m  _____ _                  [0m ║
+    ║[0;31m     │ \_/ │    [0;36m / ____| |                 [0m ║
+    ║[0;31m     │     │    [0;36m| |    | | __ ___      ____[0m ║
+    ║[0;31m     └──┬──┘    [0;36m| |    | |/ _` \ \ /\ / / /[0m ║
+    ║[0;31m    ┌───┴───┐   [0;36m| |____| | (_| |\ V  V / /_[0m ║
+    ║[0;31m    │  ███  │   [0;36m \_____|_|\__,_| \_/\_/\___|[0m ║
+    ║[0;31m    │ ▓▓▓▓▓ │   [0;36m                            [0m ║
+    ║[0;31m    └───────┘   [0;36m      🦞 bot                [0m ║
+    ║                                        ║
+    ║[0;32m      ✅  Installation Successful!     [0m ║
+    ║                                        ║
+    ╚════════════════════════════════════════╝[0m
+LOBSTER
 echo ""
 echo -e "${GREEN}🔒 Security Status:${NC}"
 echo "  - UFW Firewall: ENABLED"
