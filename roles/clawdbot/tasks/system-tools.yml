@@ -7,6 +7,9 @@
       # Editors
       - vim
       - nano
+      # Version control
+      - git
+      - git-lfs
       # Network tools
       - curl
       - wget
@@ -60,3 +63,29 @@
     owner: "{{ clawdbot_user }}"
     group: "{{ clawdbot_user }}"
     mode: '0644'
+
+- name: Deploy global vim configuration
+  ansible.builtin.template:
+    src: vimrc.j2
+    dest: /etc/vim/vimrc.local
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure git globally
+  community.general.git_config:
+    name: "{{ item.name }}"
+    scope: global
+    value: "{{ item.value }}"
+  loop:
+    - { name: 'init.defaultBranch', value: 'main' }
+    - { name: 'pull.rebase', value: 'false' }
+    - { name: 'core.editor', value: 'vim' }
+    - { name: 'color.ui', value: 'auto' }
+    - { name: 'alias.st', value: 'status' }
+    - { name: 'alias.co', value: 'checkout' }
+    - { name: 'alias.br', value: 'branch' }
+    - { name: 'alias.ci', value: 'commit' }
+    - { name: 'alias.unstage', value: 'reset HEAD --' }
+    - { name: 'alias.last', value: 'log -1 HEAD' }
+    - { name: 'alias.lg', value: 'log --oneline --graph --decorate --all' }
