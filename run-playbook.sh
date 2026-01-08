@@ -10,16 +10,22 @@ else
     PLAYBOOK_EXIT=$?
 fi
 
-# After playbook completes successfully, switch to clawdbot user
+# After playbook completes successfully, show instructions
 if [ $PLAYBOOK_EXIT -eq 0 ]; then
     echo ""
-    echo "🚀 Switching to clawdbot user..."
+    echo "═══════════════════════════════════════════════════════════"
+    echo "✅ INSTALLATION COMPLETE!"
+    echo "═══════════════════════════════════════════════════════════"
     echo ""
-    sleep 1
-    
-    # The trick: replace current shell completely with sudo's shell
-    # Don't use exec alone - use it within a login command
-    exec sudo -u clawdbot -i
+    echo "🔄 CHANGE USER NOW with:"
+    echo ""
+    echo "    sudo -i -u clawdbot"
+    echo ""
+    echo "This will switch you to the clawdbot user and show"
+    echo "the next setup steps (configuration, provider login, etc.)"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo ""
 else
     echo "❌ Playbook failed with exit code $PLAYBOOK_EXIT"
     exit $PLAYBOOK_EXIT

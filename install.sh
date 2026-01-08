@@ -90,5 +90,4 @@ echo ""
 cd /
 rm -rf "$TEMP_DIR"
 
-# The run-playbook.sh script will automatically launch /tmp/clawdbot-setup.sh
-# which handles the user switch and displays setup instructions
+# run-playbook.sh will display instructions to switch to clawdbot user

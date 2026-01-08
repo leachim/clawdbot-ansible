@@ -33,15 +33,26 @@ curl -fsSL https://raw.githubusercontent.com/pasogott/clawdbot-ansible/main/inst
 
 ## Post-Install
 
+After installation completes, switch to the clawdbot user:
+
 ```bash
-# 1. Connect to Tailscale
-sudo tailscale up
+sudo -i -u clawdbot
+```
 
-# 2. Configure Clawdbot
-sudo nano /home/clawdbot/.clawdbot/config.yml
+This will show you the next steps for:
+- Configuring Clawdbot
+- Logging into your messaging provider (WhatsApp/Telegram/Signal)
+- Testing the gateway
+- Connecting Tailscale
 
-# 3. Login as clawdbot user
-sudo su - clawdbot
+You can also manage the service:
+
+```bash
+# Check status
+sudo systemctl status clawdbot
+
+# View logs
+sudo journalctl -u clawdbot -f
 clawdbot login
 
 # 4. Check status

@@ -97,6 +97,6 @@
         line: '[ -f ~/.clawdbot-welcome ] && source ~/.clawdbot-welcome'
         state: present
 
-    - name: Signal playbook completion
-      ansible.builtin.set_fact:
-        clawdbot_setup_ready: true
+    - name: Notify that playbook is complete
+      ansible.builtin.debug:
+        msg: "✅ Clawdbot installation complete!"
