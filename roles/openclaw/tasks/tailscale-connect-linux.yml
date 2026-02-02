@@ -1,0 +1,71 @@
+---
+# Linux-specific Tailscale CONNECTION
+# Run this AFTER all package installations as it may affect DNS
+
+- name: Ensure tailscaled service is running
+  ansible.builtin.systemd:
+    name: tailscaled
+    state: started
+    enabled: true
+
+- name: Check if Tailscale is already connected (Linux)
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status_linux
+  changed_when: false
+  failed_when: false
+
+- name: Parse Tailscale status
+  ansible.builtin.set_fact:
+    tailscale_connected: "{{ (tailscale_status_linux.stdout | from_json).BackendState == 'Running' }}"
+  when: tailscale_status_linux.rc == 0
+  failed_when: false
+
+- name: Set tailscale_connected to false if status failed
+  ansible.builtin.set_fact:
+    tailscale_connected: false
+  when: tailscale_status_linux.rc != 0
+
+- name: Connect Tailscale with auth key (Linux)
+  ansible.builtin.command: tailscale up --authkey {{ tailscale_authkey }}
+  when:
+    - not tailscale_connected
+    - tailscale_authkey is defined
+    - tailscale_authkey | length > 0
+    - tailscale_authkey != ""
+  register: tailscale_connect
+  changed_when: tailscale_connect.rc == 0
+  failed_when: false
+
+- name: Display Tailscale connection failure
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "Tailscale auth key may be expired"
+      - "============================================"
+      - ""
+      - "Auth key error: {{ tailscale_connect.stderr | default('unknown') }}"
+      - ""
+      - "To fix:"
+      - "1. Generate new auth key: https://login.tailscale.com/admin/settings/keys"
+      - "2. Update tailscale_authkey in defaults/main.yml"
+      - "3. Or run manually: sudo tailscale up"
+  when:
+    - tailscale_connect is defined
+    - tailscale_connect.rc is defined
+    - tailscale_connect.rc != 0
+
+- name: Display Tailscale auth URL if not connected and no auth key (Linux)
+  ansible.builtin.debug:
+    msg:
+      - "============================================"
+      - "Tailscale installed but not connected yet"
+      - "============================================"
+      - ""
+      - "To connect this machine to your Tailnet:"
+      - "Run: sudo tailscale up"
+      - ""
+      - "Or set tailscale_authkey in defaults/main.yml"
+      - "Get auth key from: https://login.tailscale.com/admin/settings/keys"
+  when:
+    - not tailscale_connected
+    - tailscale_authkey is not defined or tailscale_authkey | length == 0

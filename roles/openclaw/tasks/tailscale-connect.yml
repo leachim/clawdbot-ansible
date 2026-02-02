@@ -1,0 +1,9 @@
+---
+# Tailscale CONNECTION orchestration - run AFTER all package installations
+# This runs 'tailscale up' which may affect DNS/networking
+
+- name: Include Linux Tailscale connection
+  ansible.builtin.include_tasks: tailscale-connect-linux.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+# macOS connection is handled in tailscale-macos.yml (brew handles it differently)

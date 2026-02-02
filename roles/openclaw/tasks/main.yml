@@ -1,0 +1,61 @@
+---
+# Section 1: User setup (must be first - other tasks depend on user existing)
+- name: Include user creation tasks
+  ansible.builtin.include_tasks: user.yml
+  tags: [user, section1]
+
+# Section 2: System tools (apt packages + user shell config)
+- name: Include system tools installation tasks
+  ansible.builtin.include_tasks: system-tools.yml
+  tags: [system, tools, section2]
+
+# Section 3: Networking (firewall + Tailscale)
+- name: Include firewall configuration tasks
+  ansible.builtin.include_tasks: firewall.yml
+  tags: [firewall, networking, section3]
+
+- name: Include Tailscale installation tasks
+  ansible.builtin.include_tasks: tailscale-install.yml
+  tags: [tailscale, networking, section3]
+
+- name: Include Tailscale connection tasks
+  ansible.builtin.include_tasks: tailscale-connect.yml
+  tags: [tailscale, networking, section3]
+
+# Section 4: Package managers
+- name: Include Homebrew installation tasks
+  ansible.builtin.include_tasks: homebrew.yml
+  tags: [homebrew, packagemanagers, section4]
+
+- name: Include Bun installation tasks
+  ansible.builtin.include_tasks: bun.yml
+  tags: [bun, packagemanagers, section4]
+
+- name: Include Node.js installation tasks
+  ansible.builtin.include_tasks: nodejs.yml
+  tags: [nodejs, packagemanagers, section4]
+
+# Section 5: Docker
+- name: Include Docker installation tasks
+  ansible.builtin.include_tasks: docker.yml
+  tags: [docker, section5]
+
+# Section 6: OpenClaw
+- name: Include OpenClaw setup tasks
+  ansible.builtin.include_tasks: clawdbot.yml
+  tags: [openclaw, section6]
+
+# Section 7: Browser
+- name: Include Chromium installation tasks
+  ansible.builtin.include_tasks: chromium.yml
+  tags: [chromium, browser, section7]
+
+# Section 8: Git backup
+- name: Include workspace git backup tasks
+  ansible.builtin.include_tasks: clawd-git-backup.yml
+  tags: [gitbackup, workspace, section8]
+
+# Section 9: Server maintenance
+- name: Include server maintenance tasks
+  ansible.builtin.include_tasks: maintenance.yml
+  tags: [maintenance, reboot, updates, section9]

@@ -1,0 +1,32 @@
+#!/bin/bash
+# Daily system update script - only runs between 3am and 4am UTC
+
+LOG_FILE="/var/log/system-update.log"
+
+# Check if we're in the allowed time window (3:00-3:59 UTC)
+CURRENT_HOUR=$(date -u +%H)
+if [ "$CURRENT_HOUR" != "03" ]; then
+  echo "$(date): Update skipped - outside maintenance window (3am-4am UTC)" >> "$LOG_FILE"
+  exit 0
+fi
+
+echo "========================================" >> "$LOG_FILE"
+echo "Update run: $(date)" >> "$LOG_FILE"
+echo "========================================" >> "$LOG_FILE"
+
+# Update package lists
+apt-get update >> "$LOG_FILE" 2>&1
+
+# Upgrade packages (non-interactive)
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y >> "$LOG_FILE" 2>&1
+
+# Autoremove unused packages
+apt-get autoremove -y >> "$LOG_FILE" 2>&1
+
+# Clean apt cache
+apt-get autoclean >> "$LOG_FILE" 2>&1
+
+# Fix OpenClaw state directory permissions (security)
+chmod 700 {{ clawdbot_data_dir }} 2>/dev/null || true
+
+echo "Update completed: $(date)" >> "$LOG_FILE"

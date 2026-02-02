@@ -1,0 +1,94 @@
+---
+# Bun installation - runs as openclaw user
+
+- name: Check if Bun is installed
+  ansible.builtin.stat:
+    path: "{{ clawdbot_home }}/.bun/bin/bun"
+  register: bun_check
+
+- name: Ensure .bun directory exists
+  ansible.builtin.file:
+    path: "{{ clawdbot_home }}/.bun"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0755'
+
+- name: Download bun installer
+  ansible.builtin.get_url:
+    url: https://bun.com/install
+    dest: "{{ clawdbot_home }}/bun-install.sh"
+    mode: '0755'
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+  when: not bun_check.stat.exists
+
+- name: Install Bun for openclaw user
+  ansible.builtin.shell: |
+    export HOME="{{ clawdbot_home }}"
+    export BUN_INSTALL="{{ clawdbot_home }}/.bun"
+    bash {{ clawdbot_home }}/bun-install.sh
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  environment:
+    HOME: "{{ clawdbot_home }}"
+    BUN_INSTALL: "{{ clawdbot_home }}/.bun"
+  when: not bun_check.stat.exists
+  register: bun_install
+
+- name: Display Bun installation output
+  ansible.builtin.debug:
+    msg: "{{ bun_install.stdout_lines | default([]) }}"
+  when: bun_install is changed
+
+- name: Display Bun installation errors
+  ansible.builtin.debug:
+    msg: "{{ bun_install.stderr_lines | default([]) }}"
+  when: bun_install is changed
+
+- name: Clean up installer
+  ansible.builtin.file:
+    path: "{{ clawdbot_home }}/bun-install.sh"
+    state: absent
+
+- name: Verify Bun installation
+  ansible.builtin.stat:
+    path: "{{ clawdbot_home }}/.bun/bin/bun"
+  register: bun_verify
+
+- name: Display Bun installation status
+  ansible.builtin.debug:
+    msg: "Bun installed at {{ clawdbot_home }}/.bun/bin/bun"
+  when: bun_verify.stat.exists
+
+- name: Fail if Bun not installed
+  ansible.builtin.fail:
+    msg: "Bun installation failed - binary not found at {{ clawdbot_home }}/.bun/bin/bun. Check output above for errors."
+  when: not bun_verify.stat.exists
+
+- name: Check if clawhub is installed
+  ansible.builtin.stat:
+    path: "{{ clawdbot_home }}/.bun/bin/clawhub"
+  register: clawhub_check
+
+- name: Install clawhub globally with bun
+  ansible.builtin.shell: |
+    {{ clawdbot_home }}/.bun/bin/bun install -g clawhub
+  args:
+    executable: /bin/bash
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  environment:
+    HOME: "{{ clawdbot_home }}"
+    PATH: "{{ clawdbot_home }}/.bun/bin:/usr/local/bin:/usr/bin:/bin"
+  when: not clawhub_check.stat.exists
+  register: clawhub_install
+
+- name: Display clawhub installation status
+  ansible.builtin.debug:
+    msg: "clawhub installed successfully"
+  when: clawhub_install is changed

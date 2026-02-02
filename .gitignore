@@ -2,3 +2,5 @@
 *.log
 .ansible/
 .vault_pass
+secrets.yml
+hosts.ini

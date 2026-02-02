@@ -1,0 +1,310 @@
+---
+# Git backup for OpenClaw workspaces - syncs all files in workspace* folders to GitHub
+# Git repo is initialized on the data volume ({{ clawdbot_data_dir }})
+# Accessed via symlink at ~/.openclaw/ which tracks workspace*/ folders
+
+- name: Ensure .ssh directory exists for openclaw
+  ansible.builtin.file:
+    path: "{{ clawdbot_home }}/.ssh"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0700'
+
+- name: Copy GitHub deploy key (private)
+  ansible.builtin.copy:
+    src: ~/.ssh/hetzner_openclaw
+    dest: "{{ clawdbot_home }}/.ssh/github_deploy"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0600'
+
+- name: Copy GitHub deploy key (public)
+  ansible.builtin.copy:
+    src: ~/.ssh/hetzner_openclaw.pub
+    dest: "{{ clawdbot_home }}/.ssh/github_deploy.pub"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0644'
+
+- name: Configure SSH to use deploy key for GitHub
+  ansible.builtin.blockinfile:
+    path: "{{ clawdbot_home }}/.ssh/config"
+    marker: "# {mark} ANSIBLE MANAGED - GitHub deploy key"
+    block: |
+      Host github.com
+        HostName github.com
+        User git
+        IdentityFile {{ clawdbot_home }}/.ssh/github_deploy
+        IdentitiesOnly yes
+    create: true
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0600'
+
+- name: Ensure data directory exists before git operations
+  ansible.builtin.file:
+    path: "{{ clawdbot_data_dir }}"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0700'
+
+- name: Fix ownership of all files in data directory (handles UID changes)
+  ansible.builtin.file:
+    path: "{{ clawdbot_data_dir }}"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    recurse: true
+
+- name: Debug - List data directory contents
+  ansible.builtin.shell: "ls -la {{ clawdbot_data_dir }}"
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  register: data_dir_contents
+  changed_when: false
+
+- name: Debug - Show data directory contents
+  ansible.builtin.debug:
+    var: data_dir_contents.stdout_lines
+
+- name: Initialize git repo on data volume
+  ansible.builtin.command:
+    cmd: git init
+    chdir: "{{ clawdbot_data_dir }}"
+    creates: "{{ clawdbot_data_dir }}/.git"
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  register: git_init_result
+
+- name: Debug - Show git init result
+  ansible.builtin.debug:
+    var: git_init_result
+
+- name: Ensure .git directory has correct ownership
+  ansible.builtin.file:
+    path: "{{ clawdbot_data_dir }}/.git"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    recurse: yes
+
+- name: Configure safe.directory for data volume
+  ansible.builtin.command:
+    cmd: git config --global --add safe.directory {{ clawdbot_data_dir }}
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  changed_when: false
+
+- name: Verify git repo was initialized
+  ansible.builtin.shell: "cd {{ clawdbot_data_dir }} && git rev-parse --git-dir"
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  changed_when: false
+
+- name: Ensure correct .gitignore on data volume
+  ansible.builtin.copy:
+    dest: "{{ clawdbot_data_dir }}/.gitignore"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0644'
+    content: |
+      # Ignore everything by default
+      *
+
+      # Except workspace folders and all their contents
+      !workspace*/
+      !workspace*/**
+
+      # Ignore sensitive files everywhere
+      .DS_Store
+      .env
+      **/*.key
+      **/*.pem
+      **/secrets*
+
+- name: Configure git user for openclaw
+  ansible.builtin.shell: |
+    cd {{ clawdbot_data_dir }} && git config user.email "openclaw@{{ ansible_facts['hostname'] }}" && git config user.name "OpenClaw"
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  changed_when: false
+
+- name: Check if remote origin exists
+  ansible.builtin.shell: |
+    cd {{ clawdbot_data_dir }} && git remote get-url origin 2>/dev/null || echo "none"
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  register: git_remote_check
+  changed_when: false
+
+- name: Add GitHub remote
+  ansible.builtin.shell: |
+    cd {{ clawdbot_data_dir }} && git remote add origin git@github.com:leachim/openclaw-character.git
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  when: git_remote_check.stdout == "none"
+
+- name: Ensure bin directory exists
+  ansible.builtin.file:
+    path: "{{ clawdbot_home }}/bin"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0755'
+
+- name: Ensure logs directory exists
+  ansible.builtin.file:
+    path: "{{ clawdbot_home }}/logs"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0755'
+
+- name: Create git backup script
+  ansible.builtin.copy:
+    dest: "{{ clawdbot_home }}/bin/workspace-git-backup.sh"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      # Sync OpenClaw workspaces with GitHub via git
+      # Tracks all workspace* folders on the data volume
+
+      OPENCLAW_DIR="{{ clawdbot_data_dir }}"
+      LOG_FILE="{{ clawdbot_home }}/logs/workspace-git-backup.log"
+      BRANCH="main"
+
+      mkdir -p "$(dirname "$LOG_FILE")"
+
+      exec >> "$LOG_FILE" 2>&1
+      echo "=========================================="
+      echo "Sync run: $(date)"
+      echo "=========================================="
+
+      cd "$OPENCLAW_DIR" || exit 1
+
+      # Determine branch name (main or master)
+      if git show-ref --verify --quiet refs/heads/main; then
+        BRANCH="main"
+      elif git show-ref --verify --quiet refs/heads/master; then
+        BRANCH="master"
+      fi
+
+      echo "Using branch: $BRANCH"
+
+      # Fetch latest from remote
+      echo "Fetching from origin..."
+      git fetch origin "$BRANCH" 2>/dev/null || echo "Fetch failed or no remote branch yet"
+
+      # Stash any uncommitted changes before pull
+      STASHED=false
+      if ! git diff --quiet || ! git diff --cached --quiet; then
+        echo "Stashing local changes..."
+        git stash push -m "Auto-stash before sync"
+        STASHED=true
+      fi
+
+      # Pull changes from remote (rebase to keep history clean)
+      if git show-ref --verify --quiet refs/remotes/origin/"$BRANCH"; then
+        echo "Pulling updates from origin/$BRANCH..."
+        git pull --rebase origin "$BRANCH" || {
+          echo "Pull failed, attempting to continue..."
+          git rebase --abort 2>/dev/null || true
+        }
+      fi
+
+      # Restore stashed changes
+      if [ "$STASHED" = true ]; then
+        echo "Restoring stashed changes..."
+        git stash pop || echo "Stash pop had conflicts, manual resolution may be needed"
+      fi
+
+      # Add all workspace* directories
+      git add workspace*/ 2>/dev/null || true
+
+      # Check if there are any staged changes
+      if git diff --cached --quiet; then
+        echo "No local changes to commit"
+        echo "Sync completed"
+        exit 0
+      fi
+
+      # Commit with timestamp
+      TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+      git commit -m "Auto-sync: $TIMESTAMP"
+
+      # Push to remote
+      echo "Pushing to origin/$BRANCH..."
+      git push -u origin "$BRANCH"
+
+      echo "Sync completed successfully"
+
+- name: Create git pull script (for frequent updates from GitHub)
+  ansible.builtin.copy:
+    dest: "{{ clawdbot_home }}/bin/workspace-git-pull.sh"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0755'
+    content: |
+      #!/bin/bash
+      # Pull updates from GitHub
+
+      OPENCLAW_DIR="{{ clawdbot_data_dir }}"
+      LOG_FILE="{{ clawdbot_home }}/logs/workspace-git-pull.log"
+      BRANCH="main"
+
+      cd "$OPENCLAW_DIR" || exit 1
+
+      # Determine branch name
+      if git show-ref --verify --quiet refs/heads/main; then
+        BRANCH="main"
+      elif git show-ref --verify --quiet refs/heads/master; then
+        BRANCH="master"
+      fi
+
+      # Fetch and check for changes
+      git fetch origin "$BRANCH" 2>/dev/null || exit 0
+
+      LOCAL=$(git rev-parse HEAD 2>/dev/null || echo "none")
+      REMOTE=$(git rev-parse origin/"$BRANCH" 2>/dev/null || echo "none")
+
+      if [ "$LOCAL" = "$REMOTE" ]; then
+        # No changes
+        exit 0
+      fi
+
+      # Log the update
+      echo "$(date): Pulling updates from origin/$BRANCH" >> "$LOG_FILE"
+
+      # Pull changes (rebase to keep history clean)
+      git pull --rebase origin "$BRANCH" >> "$LOG_FILE" 2>&1
+
+      echo "$(date): Pull completed" >> "$LOG_FILE"
+
+- name: Set up cron job for frequent pull from GitHub
+  ansible.builtin.cron:
+    name: "workspace git pull"
+    user: "{{ clawdbot_user }}"
+    minute: "*/15"
+    hour: "*"
+    job: "{{ clawdbot_home }}/bin/workspace-git-pull.sh"
+    state: present
+
+- name: Set up cron job for daily backup at 4am CET (3am UTC in winter, 2am UTC in summer)
+  ansible.builtin.cron:
+    name: "workspace git backup"
+    user: "{{ clawdbot_user }}"
+    minute: "0"
+    hour: "3"
+    job: "{{ clawdbot_home }}/bin/workspace-git-backup.sh"
+    state: present

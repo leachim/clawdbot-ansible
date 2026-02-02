@@ -1,0 +1,59 @@
+---
+# Headless Chromium installation for web scraping/automation
+
+- name: Install Chromium and dependencies
+  ansible.builtin.apt:
+    name:
+      - chromium-browser
+      - chromium-chromedriver
+      # Fonts for rendering
+      - fonts-liberation
+      - fonts-noto-color-emoji
+    state: present
+    update_cache: true
+
+- name: Verify Chromium installation
+  ansible.builtin.command: chromium-browser --version
+  register: chromium_version
+  changed_when: false
+  failed_when: false
+
+- name: Display Chromium version
+  ansible.builtin.debug:
+    msg: "Chromium installed: {{ chromium_version.stdout | default('not found') }}"
+
+- name: Get Chromium executable path
+  ansible.builtin.command: which chromium-browser
+  register: chromium_path
+  changed_when: false
+  failed_when: false
+
+- name: Check if OpenClaw browser config exists
+  ansible.builtin.stat:
+    path: "{{ clawdbot_home }}/.openclaw/browser.json"
+  register: browser_config_check
+
+- name: Create OpenClaw browser config
+  ansible.builtin.copy:
+    dest: "{{ clawdbot_home }}/.openclaw/browser.json"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0600'
+    content: |
+      {
+        "browser": {
+          "enabled": true,
+          "headless": true,
+          "executablePath": "{{ chromium_path.stdout | default('/usr/bin/chromium-browser') }}",
+          "noSandbox": true,
+          "defaultProfile": "openclaw"
+        }
+      }
+  when: not browser_config_check.stat.exists
+
+- name: Display browser config note
+  ansible.builtin.debug:
+    msg: |
+      Browser configured for headless Chromium.
+      Merge browser.json into ~/.openclaw/openclaw.json or run:
+      openclaw browser --browser-profile openclaw start

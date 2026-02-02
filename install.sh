@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Clawdbot Ansible Installer
-# This script installs Ansible if needed and runs the Clawdbot playbook
+# OpenClaw Ansible Installer
+# This script installs Ansible if needed and runs the OpenClaw playbook
 
 # Enable 256 colors
 export TERM=xterm-256color
@@ -26,7 +26,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   Clawdbot Ansible Installer          ║${NC}"
+echo -e "${GREEN}║   OpenClaw Ansible Installer          ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -62,8 +62,12 @@ echo -e "${GREEN}[1/4] Checking prerequisites...${NC}"
 # Check if Ansible is installed
 if ! command -v ansible-playbook &> /dev/null; then
     echo -e "${YELLOW}Ansible not found. Installing...${NC}"
-    $SUDO apt-get update -qq
-    $SUDO apt-get install -y ansible
+    if [ "$OS_TYPE" = "macos" ]; then
+        brew install ansible
+    else
+        $SUDO apt-get update -qq
+        $SUDO apt-get install -y ansible
+    fi
     echo -e "${GREEN}✓ Ansible installed${NC}"
 else
     echo -e "${GREEN}✓ Ansible already installed${NC}"

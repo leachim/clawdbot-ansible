@@ -1,0 +1,36 @@
+---
+# OpenClaw default variables
+# IMPORTANT: Sensitive values (tailscale_authkey, clawdbot_ssh_keys, openclaw_data_dir)
+# must be defined in secrets.yml - see secrets.yml.example
+
+# Node.js version
+nodejs_version: "22.x"
+
+# OpenClaw settings
+openclaw_port: 3000
+
+# OpenClaw config directory (symlinked to data volume)
+clawdbot_config_dir: "{{ clawdbot_home }}/.openclaw"
+# Actual data location on volume
+clawdbot_data_dir: "{{ openclaw_data_dir }}"
+
+# User settings (will be created as system user)
+clawdbot_user: openclaw
+clawdbot_home: /home/openclaw
+clawdbot_uid: 2000
+clawdbot_gid: 2000
+
+# OS-specific settings (set dynamically in tasks)
+homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts['os_family'] == 'Darwin' else '/home/linuxbrew/.linuxbrew' }}"
+package_manager: "{{ 'brew' if ansible_facts['os_family'] == 'Darwin' else 'apt' }}"
+
+# Installation mode: 'release' or 'development'
+# release: Install via pnpm install -g openclaw@latest
+# development: Clone repo, build from source, link globally
+clawdbot_install_mode: "release"
+
+# Development mode settings (only used when clawdbot_install_mode: development)
+openclaw_repo_url: "https://github.com/openclaw/openclaw.git"
+openclaw_repo_branch: "main"
+clawdbot_code_dir: "{{ clawdbot_home }}/code"
+clawdbot_repo_dir: "{{ clawdbot_code_dir }}/openclaw"

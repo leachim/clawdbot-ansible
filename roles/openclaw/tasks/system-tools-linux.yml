@@ -1,6 +1,17 @@
 ---
 # Linux-specific system tools installation (apt-based)
 
+- name: Wait for apt lock to be released
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
+          fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+          fuser /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      echo "Waiting for apt lock..."
+      sleep 5
+    done
+  changed_when: false
+  timeout: 300
+
 - name: Install essential system tools (Linux - apt)
   ansible.builtin.apt:
     name:
@@ -46,7 +57,7 @@
     state: present
     update_cache: true
 
-- name: Set zsh as default shell for clawdbot user (Linux)
+- name: Set zsh as default shell for openclaw user (Linux)
   ansible.builtin.user:
     name: "{{ clawdbot_user }}"
     shell: /usr/bin/zsh
@@ -59,21 +70,21 @@
     group: root
     mode: '0644'
 
-- name: Configure .bashrc for clawdbot user (Linux)
+- name: Configure .bashrc for openclaw user (Linux)
   ansible.builtin.blockinfile:
     path: "{{ clawdbot_home }}/.bashrc"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Clawdbot config"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OpenClaw config"
     block: |
       # Enable 256 colors
       export TERM=xterm-256color
       export COLORTERM=truecolor
 
-      # Add Homebrew to PATH (Linux)
-      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      # Add Homebrew to PATH (Linux) - only if installed
+      [ -x /home/linuxbrew/.linuxbrew/bin/brew ] && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-      # Add pnpm to PATH
+      # Add pnpm and bun to PATH
       export PNPM_HOME="{{ clawdbot_home }}/.local/share/pnpm"
-      export PATH="{{ clawdbot_home }}/.local/bin:$PNPM_HOME:$PATH"
+      export PATH="{{ clawdbot_home }}/.bun/bin:{{ clawdbot_home }}/.local/bin:$PNPM_HOME:$PATH"
 
       # Color support for common tools
       export CLICOLOR=1
@@ -88,21 +99,21 @@
     group: "{{ clawdbot_user }}"
     mode: '0644'
 
-- name: Configure .zshrc for clawdbot user (Linux)
+- name: Configure .zshrc for openclaw user (Linux)
   ansible.builtin.blockinfile:
     path: "{{ clawdbot_home }}/.zshrc"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Clawdbot config"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OpenClaw config"
     block: |
       # Enable 256 colors
       export TERM=xterm-256color
       export COLORTERM=truecolor
 
-      # Add Homebrew to PATH (Linux)
-      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      # Add Homebrew to PATH (Linux) - only if installed
+      [ -x /home/linuxbrew/.linuxbrew/bin/brew ] && eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-      # Add pnpm to PATH
+      # Add pnpm and bun to PATH
       export PNPM_HOME="{{ clawdbot_home }}/.local/share/pnpm"
-      export PATH="{{ clawdbot_home }}/.local/bin:$PNPM_HOME:$PATH"
+      export PATH="{{ clawdbot_home }}/.bun/bin:{{ clawdbot_home }}/.local/bin:$PNPM_HOME:$PATH"
 
       # Color support for common tools
       export CLICOLOR=1

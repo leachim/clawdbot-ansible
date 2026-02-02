@@ -1,0 +1,11 @@
+---
+# Tailscale INSTALLATION orchestration - delegates to OS-specific tasks
+# This only installs Tailscale - does NOT connect (to avoid breaking DNS)
+
+- name: Include Linux Tailscale installation
+  ansible.builtin.include_tasks: tailscale-install-linux.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Include macOS Tailscale installation
+  ansible.builtin.include_tasks: tailscale-macos.yml
+  when: ansible_facts['os_family'] == 'Darwin'

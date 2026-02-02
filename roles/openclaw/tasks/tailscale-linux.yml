@@ -5,8 +5,8 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      DIST="{{ ansible_distribution | lower }}"
-      RELEASE="{{ ansible_distribution_release }}"
+      DIST="{{ ansible_facts['distribution'] | lower }}"
+      RELEASE="{{ ansible_facts['distribution_release'] }}"
       curl -fsSL "https://pkgs.tailscale.com/stable/${DIST}/${RELEASE}.noarmor.gpg" | \
         tee /usr/share/keyrings/tailscale-archive-keyring.gpg > /dev/null
     creates: /usr/share/keyrings/tailscale-archive-keyring.gpg
@@ -16,8 +16,8 @@
   ansible.builtin.shell:
     cmd: |
       set -o pipefail
-      DIST="{{ ansible_distribution | lower }}"
-      RELEASE="{{ ansible_distribution_release }}"
+      DIST="{{ ansible_facts['distribution'] | lower }}"
+      RELEASE="{{ ansible_facts['distribution_release'] }}"
       curl -fsSL "https://pkgs.tailscale.com/stable/${DIST}/${RELEASE}.tailscale-keyring.list" | \
         tee /etc/apt/sources.list.d/tailscale.list > /dev/null
     creates: /etc/apt/sources.list.d/tailscale.list
@@ -44,7 +44,28 @@
   changed_when: false
   failed_when: false
 
-- name: Display Tailscale auth URL if not connected (Linux)
+- name: Parse Tailscale status
+  ansible.builtin.set_fact:
+    tailscale_connected: "{{ (tailscale_status_linux.stdout | from_json).BackendState == 'Running' }}"
+  when: tailscale_status_linux.rc == 0
+  failed_when: false
+
+- name: Set tailscale_connected to false if status failed
+  ansible.builtin.set_fact:
+    tailscale_connected: false
+  when: tailscale_status_linux.rc != 0
+
+- name: Connect Tailscale with auth key (Linux)
+  ansible.builtin.command: tailscale up --authkey {{ tailscale_authkey }}
+  when:
+    - not tailscale_connected
+    - tailscale_authkey is defined
+    - tailscale_authkey | length > 0
+    - tailscale_authkey != ""
+  register: tailscale_connect
+  changed_when: tailscale_connect.rc == 0
+
+- name: Display Tailscale auth URL if not connected and no auth key (Linux)
   ansible.builtin.debug:
     msg:
       - "============================================"
@@ -54,8 +75,8 @@
       - "To connect this machine to your Tailnet:"
       - "Run: sudo tailscale up"
       - ""
-      - "For unattended installation, use an auth key:"
-      - "sudo tailscale up --authkey tskey-auth-xxxxx"
-      - ""
+      - "Or set tailscale_authkey in defaults/main.yml"
       - "Get auth key from: https://login.tailscale.com/admin/settings/keys"
-  when: tailscale_status_linux.rc != 0
+  when:
+    - not tailscale_connected
+    - tailscale_authkey is not defined or tailscale_authkey | length == 0

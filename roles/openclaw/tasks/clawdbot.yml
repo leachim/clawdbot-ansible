@@ -1,0 +1,209 @@
+---
+# =============================================================================
+# OpenClaw data is stored on mounted volume and symlinked to ~/.openclaw
+# This allows the user home to be at /home/openclaw while data persists on volume
+# =============================================================================
+
+# Check if data already exists on the volume (from previous installation)
+- name: Check if OpenClaw data exists on volume
+  ansible.builtin.stat:
+    path: "{{ clawdbot_data_dir }}"
+  register: volume_data_check
+
+# Fix ownership of existing data directory (handles UID/GID changes between runs)
+- name: Fix ownership of existing data directory
+  ansible.builtin.file:
+    path: "{{ clawdbot_data_dir }}"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    recurse: true
+  when: volume_data_check.stat.exists
+
+# Create data directory structure on volume (only if it doesn't exist)
+- name: Create OpenClaw data directories on volume
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ clawdbot_data_dir }}", mode: '0700' }
+    - { path: "{{ clawdbot_data_dir }}/sessions", mode: '0755' }
+    - { path: "{{ clawdbot_data_dir }}/credentials", mode: '0700' }
+    - { path: "{{ clawdbot_data_dir }}/data", mode: '0755' }
+    - { path: "{{ clawdbot_data_dir }}/logs", mode: '0755' }
+    - { path: "{{ clawdbot_data_dir }}/workspace", mode: '0755' }
+  when: not volume_data_check.stat.exists
+
+# Check current state of ~/.openclaw
+- name: Check if ~/.openclaw exists
+  ansible.builtin.stat:
+    path: "{{ clawdbot_config_dir }}"
+  register: home_openclaw_check
+
+# Remove ~/.openclaw if it's a directory (not a symlink) - data should be on volume
+- name: Remove ~/.openclaw directory if not a symlink
+  ansible.builtin.file:
+    path: "{{ clawdbot_config_dir }}"
+    state: absent
+  when:
+    - home_openclaw_check.stat.exists
+    - not home_openclaw_check.stat.islnk
+
+# Create symlink from ~/.openclaw to volume
+- name: Create symlink from ~/.openclaw to volume data
+  ansible.builtin.file:
+    src: "{{ clawdbot_data_dir }}"
+    dest: "{{ clawdbot_config_dir }}"
+    state: link
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+  when: not (home_openclaw_check.stat.exists and home_openclaw_check.stat.islnk)
+
+- name: Create pnpm directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0755'
+  loop:
+    - "{{ clawdbot_home }}/.local/share/pnpm"
+    - "{{ clawdbot_home }}/.local/share/pnpm/store"
+    - "{{ clawdbot_home }}/.local/bin"
+
+- name: Ensure pnpm directories have correct ownership
+  ansible.builtin.file:
+    path: "{{ clawdbot_home }}/.local/share/pnpm"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    recurse: true
+    mode: '0755'
+
+- name: Configure pnpm for openclaw user
+  ansible.builtin.shell:
+    cmd: |
+      pnpm config set global-dir {{ clawdbot_home }}/.local/share/pnpm
+      pnpm config set global-bin-dir {{ clawdbot_home }}/.local/bin
+    executable: /bin/bash
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  changed_when: true  # Always consider changed as pnpm config may update
+
+- name: Display installation mode
+  ansible.builtin.debug:
+    msg: "📦 Installation mode: {{ clawdbot_install_mode }}"
+
+# Include appropriate installation method based on mode
+- name: Include release installation (pnpm install -g)
+  ansible.builtin.include_tasks: clawdbot-release.yml
+  when: clawdbot_install_mode == "release"
+
+- name: Include development installation (git clone + build + link)
+  ansible.builtin.include_tasks: clawdbot-development.yml
+  when: clawdbot_install_mode == "development"
+
+- name: Configure .bashrc for openclaw user (base config)
+  ansible.builtin.blockinfile:
+    path: "{{ clawdbot_home }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OpenClaw pnpm"
+    block: |
+      # pnpm configuration
+      export PNPM_HOME="{{ clawdbot_home }}/.local/share/pnpm"
+      export PATH="{{ clawdbot_home }}/.local/bin:$PNPM_HOME:$PATH"
+    create: true
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0644'
+    insertafter: EOF
+
+# NOTE: We do NOT create config.yml here - openclaw onboard/configure will do that
+# We also do NOT install the systemd service - openclaw onboard --install-daemon will do that
+# The .openclaw directory structure is created above, but config and daemon are user-initiated
+
+- name: Enforce secure permissions on OpenClaw data directory
+  ansible.builtin.file:
+    path: "{{ clawdbot_data_dir }}"
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0700'
+
+# Configure gateway authentication to prevent unauthorized access
+- name: Check if OpenClaw config exists
+  ansible.builtin.stat:
+    path: "{{ clawdbot_data_dir }}/config.json"
+  register: openclaw_config_check
+
+- name: Generate gateway auth token
+  ansible.builtin.set_fact:
+    gateway_auth_token: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+  when: not openclaw_config_check.stat.exists
+
+- name: Create OpenClaw config with gateway auth
+  ansible.builtin.copy:
+    dest: "{{ clawdbot_data_dir }}/config.json"
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: '0600'
+    content: |
+      {
+        "gateway": {
+          "auth": "{{ gateway_auth_token }}"
+        }
+      }
+  when: not openclaw_config_check.stat.exists
+
+- name: Update existing config with gateway auth if missing
+  ansible.builtin.shell:
+    cmd: |
+      CONFIG="{{ clawdbot_data_dir }}/config.json"
+      if ! grep -q '"auth"' "$CONFIG" 2>/dev/null; then
+        TOKEN=$(openssl rand -hex 16)
+        if command -v jq &>/dev/null; then
+          jq --arg token "$TOKEN" '.gateway.auth = $token' "$CONFIG" > "$CONFIG.tmp" && mv "$CONFIG.tmp" "$CONFIG"
+        else
+          export CONFIG TOKEN
+          python3 -c 'import json,os; c=json.load(open(os.environ["CONFIG"])); c.setdefault("gateway",{})["auth"]=os.environ["TOKEN"]; json.dump(c,open(os.environ["CONFIG"],"w"),indent=2)'
+        fi
+        echo "CHANGED: Added gateway.auth token"
+      else
+        echo "OK: gateway.auth already configured"
+      fi
+    executable: /bin/bash
+  become: true
+  become_user: "{{ clawdbot_user }}"
+  become_method: su
+  register: gateway_auth_result
+  changed_when: "'CHANGED' in gateway_auth_result.stdout"
+  when: openclaw_config_check.stat.exists
+
+- name: Display gateway auth token (save this)
+  ansible.builtin.debug:
+    msg: |
+      Gateway auth token has been configured.
+      {% if gateway_auth_token is defined %}
+      New token: {{ gateway_auth_token }}
+      {% else %}
+      Check existing config or output above for token value.
+      {% endif %}
+
+      Use this token to authenticate to the Control UI.
+
+- name: Display configuration note
+  ansible.builtin.debug:
+    msg: |
+      OpenClaw is installed but NOT configured yet.
+
+      Next steps (run as openclaw user):
+      1. Switch user: sudo su - openclaw
+      2. Run onboarding: openclaw onboard --install-daemon
+
+      This will:
+      • Create configuration files (~/.openclaw/config.json)
+      • Guide you through provider setup
+      • Install and start the daemon service automatically

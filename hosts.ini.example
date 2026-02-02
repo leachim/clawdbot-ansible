@@ -1,0 +1,5 @@
+# Copy to hosts.ini and fill in your values
+# See secrets.yml.example for sensitive configuration
+
+[hetzner]
+YOUR_SERVER_IP ansible_user=root ansible_ssh_private_key_file=~/.ssh/your_key ansible_become=false ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'

@@ -22,6 +22,7 @@
     update: true
   become: true
   become_user: "{{ clawdbot_user }}"
+  become_method: su
   when: not clawdbot_repo_exists.stat.exists
 
 - name: Pull latest changes if repo exists
@@ -32,6 +33,7 @@
     update: true
   become: true
   become_user: "{{ clawdbot_user }}"
+  become_method: su
   when: clawdbot_repo_exists.stat.exists
   register: git_pull_result
 
@@ -47,6 +49,7 @@
     executable: /bin/bash
   become: true
   become_user: "{{ clawdbot_user }}"
+  become_method: su
   environment:
     PNPM_HOME: "{{ clawdbot_home }}/.local/share/pnpm"
     PATH: "{{ clawdbot_home }}/.local/bin:/home/linuxbrew/.linuxbrew/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
@@ -61,6 +64,7 @@
     executable: /bin/bash
   become: true
   become_user: "{{ clawdbot_user }}"
+  become_method: su
   environment:
     PNPM_HOME: "{{ clawdbot_home }}/.local/share/pnpm"
     PATH: "{{ clawdbot_home }}/.local/bin:/home/linuxbrew/.linuxbrew/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
@@ -110,30 +114,31 @@
     executable: /bin/bash
   become: true
   become_user: "{{ clawdbot_user }}"
+  become_method: su
   environment:
     PATH: "{{ clawdbot_home }}/.local/bin:/usr/local/bin:/usr/bin:/bin"
   register: clawdbot_dev_version
   changed_when: false
 
-- name: Display installed Clawdbot version (development build)
+- name: Display installed OpenClaw version (development build)
   ansible.builtin.debug:
     msg: |
-      ✅ Clawdbot installed from source: {{ clawdbot_dev_version.stdout }}
+      ✅ OpenClaw installed from source: {{ clawdbot_dev_version.stdout }}
       📂 Repository: {{ clawdbot_repo_dir }}
-      🔗 Binary: {{ clawdbot_home }}/.local/bin/clawdbot -> {{ clawdbot_repo_dir }}/bin/clawdbot.js
+      🔗 Binary: {{ clawdbot_home }}/.local/bin/openclaw -> {{ clawdbot_repo_dir }}/bin/openclaw.js
 
 - name: Add development mode info to .bashrc
   ansible.builtin.blockinfile:
     path: "{{ clawdbot_home }}/.bashrc"
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Clawdbot development"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - OpenClaw development"
     block: |
-      # Clawdbot development mode
-      export CLAWDBOT_DEV_DIR="{{ clawdbot_repo_dir }}"
+      # OpenClaw development mode
+      export OPENCLAW_DEV_DIR="{{ clawdbot_repo_dir }}"
 
       # Aliases for development
-      alias clawdbot-rebuild='cd {{ clawdbot_repo_dir }} && pnpm build'
-      alias clawdbot-dev='cd {{ clawdbot_repo_dir }}'
-      alias clawdbot-pull='cd {{ clawdbot_repo_dir }} && git pull && pnpm install && pnpm build'
+      alias openclaw-rebuild='cd {{ clawdbot_repo_dir }} && pnpm build'
+      alias openclaw-dev='cd {{ clawdbot_repo_dir }}'
+      alias openclaw-pull='cd {{ clawdbot_repo_dir }} && git pull && pnpm install && pnpm build'
     create: true
     owner: "{{ clawdbot_user }}"
     group: "{{ clawdbot_user }}"

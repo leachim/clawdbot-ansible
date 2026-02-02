@@ -1,0 +1,33 @@
+---
+# Homebrew installation - runs as openclaw user (non-root)
+
+- name: Check if Homebrew is installed
+  ansible.builtin.stat:
+    path: "{{ '/opt/homebrew/bin/brew' if is_macos else '/home/linuxbrew/.linuxbrew/bin/brew' }}"
+  register: homebrew_check
+
+- name: Install Homebrew (Linux)
+  ansible.builtin.shell: |
+    su - {{ clawdbot_user }} -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+  args:
+    creates: /home/linuxbrew/.linuxbrew/bin/brew
+  when:
+    - not homebrew_check.stat.exists
+    - not is_macos
+  register: homebrew_install_linux
+
+- name: Install Homebrew (macOS)
+  ansible.builtin.shell: |
+    su - {{ clawdbot_user }} -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+  args:
+    creates: /opt/homebrew/bin/brew
+  when:
+    - not homebrew_check.stat.exists
+    - is_macos
+  register: homebrew_install_macos
+
+- name: Display Homebrew installation status
+  ansible.builtin.debug:
+    msg: "Homebrew installed successfully"
+  when: (homebrew_install_linux is defined and homebrew_install_linux.changed) or
+        (homebrew_install_macos is defined and homebrew_install_macos.changed)

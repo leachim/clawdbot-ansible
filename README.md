@@ -1,11 +1,11 @@
-# Clawdbot Ansible Installer
+# OpenClaw Ansible Installer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Lint](https://github.com/pasogott/clawdbot-ansible/actions/workflows/lint.yml/badge.svg)](https://github.com/pasogott/clawdbot-ansible/actions/workflows/lint.yml)
 [![Ansible](https://img.shields.io/badge/Ansible-2.14+-blue.svg)](https://www.ansible.com/)
 [![Multi-OS](https://img.shields.io/badge/OS-Debian%20%7C%20Ubuntu%20%7C%20macOS-orange.svg)](https://www.debian.org/)
 
-Automated, hardened installation of [Clawdbot](https://github.com/clawdbot/clawdbot) with Docker, Homebrew, and Tailscale VPN support for Linux and macOS.
+Automated, hardened installation of [OpenClaw](https://github.com/openclaw/openclaw) with Docker, Homebrew, and Tailscale VPN support for Linux and macOS.
 
 ## Features
 
@@ -16,7 +16,7 @@ Automated, hardened installation of [Clawdbot](https://github.com/clawdbot/clawd
 - 🛡️ **Multi-OS Support**: Debian, Ubuntu, and macOS
 - 🚀 **One-command install**: Complete setup in minutes
 - 🔧 **Auto-configuration**: DBus, systemd, environment setup
-- 📦 **pnpm installation**: Uses `pnpm install -g clawdbot@latest`
+- 📦 **pnpm installation**: Uses `pnpm install -g openclaw@latest`
 
 ## Quick Start
 
@@ -47,21 +47,21 @@ ansible-playbook playbook.yml --ask-become-pass -e clawdbot_install_mode=develop
 - UFW firewall (SSH + Tailscale ports only)
 - Docker CE + Compose V2 (for sandboxes)
 - Node.js 22.x + pnpm
-- Clawdbot on host (not containerized)
+- OpenClaw on host (not containerized)
 - Systemd service (auto-start)
 
 ## Post-Install
 
-After installation completes, switch to the clawdbot user:
+After installation completes, switch to the openclaw user:
 
 ```bash
-sudo su - clawdbot
+sudo su - openclaw
 ```
 
 Then run the quick-start onboarding wizard:
 
 ```bash
-clawdbot onboard --install-daemon
+openclaw onboard --install-daemon
 ```
 
 This will:
@@ -73,39 +73,39 @@ This will:
 
 ```bash
 # Configure manually
-clawdbot configure
+openclaw configure
 
 # Login to provider
-clawdbot providers login
+openclaw providers login
 
 # Test gateway
-clawdbot gateway
+openclaw gateway
 
 # Install as daemon
-clawdbot daemon install
-clawdbot daemon start
+openclaw daemon install
+openclaw daemon start
 
 # Check status
-clawdbot status
-clawdbot logs
+openclaw status
+openclaw logs
 ```
 
 ## Installation Modes
 
 ### Release Mode (Default)
-- Installs via `pnpm install -g clawdbot@latest`
+- Installs via `pnpm install -g openclaw@latest`
 - Gets latest stable version from npm registry
-- Automatic updates via `pnpm install -g clawdbot@latest`
+- Automatic updates via `pnpm install -g openclaw@latest`
 - **Recommended for production**
 
 ### Development Mode
-- Clones from `https://github.com/clawdbot/clawdbot.git`
+- Clones from `https://github.com/openclaw/openclaw.git`
 - Builds from source with `pnpm build`
 - Symlinks binary to `~/.local/bin/clawdbot`
 - Adds helpful aliases:
-  - `clawdbot-rebuild` - Rebuild after code changes
-  - `clawdbot-dev` - Navigate to repo directory
-  - `clawdbot-pull` - Pull, install deps, and rebuild
+  - `openclaw-rebuild` - Rebuild after code changes
+  - `openclaw-dev` - Navigate to repo directory
+  - `openclaw-pull` - Pull, install deps, and rebuild
 - **Recommended for development and testing**
 
 Enable with: `-e clawdbot_install_mode=development`
@@ -113,9 +113,9 @@ Enable with: `-e clawdbot_install_mode=development`
 ## Security
 
 - **Public ports**: SSH (22), Tailscale (41641/udp) only
-- **Docker available**: For Clawdbot sandboxes (isolated execution)
+- **Docker available**: For OpenClaw sandboxes (isolated execution)
 - **Docker isolation**: Containers can't expose ports externally (DOCKER-USER chain)
-- **Non-root**: Clawdbot runs as unprivileged user
+- **Non-root**: OpenClaw runs as unprivileged user
 - **Systemd hardening**: NoNewPrivileges, PrivateTmp
 
 Verify: `nmap -p- YOUR_SERVER_IP` should show only port 22 open.
@@ -147,7 +147,7 @@ Verify: `nmap -p- YOUR_SERVER_IP` should show only port 22 open.
 ### Common (All OS)
 - Homebrew package manager
 - Node.js 22.x + pnpm
-- Clawdbot via `pnpm install -g clawdbot@latest`
+- OpenClaw via `pnpm install -g openclaw@latest`
 - Essential development tools
 - Git, zsh, oh-my-zsh
 
@@ -243,7 +243,7 @@ Edit `roles/clawdbot/defaults/main.yml` before running the playbook.
 | `clawdbot_home` | `/home/clawdbot` | User home directory |
 | `clawdbot_install_mode` | `release` | `release` or `development` |
 | `clawdbot_ssh_keys` | `[]` | List of SSH public keys |
-| `clawdbot_repo_url` | `https://github.com/clawdbot/clawdbot.git` | Git repository (dev mode) |
+| `clawdbot_repo_url` | `https://github.com/openclaw/openclaw.git` | Git repository (dev mode) |
 | `clawdbot_repo_branch` | `main` | Git branch (dev mode) |
 | `tailscale_authkey` | `""` | Tailscale auth key for auto-connect |
 | `nodejs_version` | `22.x` | Node.js version to install |
@@ -281,5 +281,5 @@ MIT - see [LICENSE](LICENSE)
 
 ## Support
 
-- Clawdbot: https://github.com/clawdbot/clawdbot
+- OpenClaw: https://github.com/openclaw/openclaw
 - This installer: https://github.com/pasogott/clawdbot-ansible/issues

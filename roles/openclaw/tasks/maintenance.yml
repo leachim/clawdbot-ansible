@@ -1,0 +1,42 @@
+---
+# Server maintenance tasks - updates and daily reboot
+
+# Run updates immediately during playbook execution
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Upgrade all packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Create system update script
+  ansible.builtin.template:
+    src: system-update.sh.j2
+    dest: /usr/local/bin/system-update.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Set up cron job for daily system updates (3:30am UTC)
+  ansible.builtin.cron:
+    name: "system updates"
+    user: root
+    minute: "30"
+    hour: "3"
+    job: "/usr/local/bin/system-update.sh"
+    state: present
+
+- name: Set up cron job for daily server reboot (4:00am UTC)
+  ansible.builtin.cron:
+    name: "daily reboot"
+    user: root
+    minute: "0"
+    hour: "4"
+    job: "/sbin/reboot"
+    state: present
