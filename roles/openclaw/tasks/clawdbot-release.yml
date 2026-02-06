@@ -3,7 +3,7 @@
 
 - name: Install OpenClaw globally as openclaw user (using pnpm)
   ansible.builtin.shell:
-    cmd: pnpm install -g openclaw@latest
+    cmd: "{{ clawdbot_home }}/.local/share/pnpm/pnpm install -g openclaw@latest"
     executable: /bin/bash
   become: true
   become_user: "{{ clawdbot_user }}"
@@ -31,13 +31,23 @@
   ansible.builtin.debug:
     msg: "OpenClaw installed from npm: {{ openclaw_version.stdout }}"
 
-- name: Set up daily cron job for OpenClaw updates (5am UTC)
+- name: Remove old openclaw update cron job
   ansible.builtin.cron:
     name: "openclaw update"
     user: "{{ clawdbot_user }}"
+    state: absent
+
+- name: Set up cron job for OpenClaw updates (every 6 hours)
+  ansible.builtin.cron:
+    name: "openclaw pnpm update"
+    user: "{{ clawdbot_user }}"
     minute: "0"
-    hour: "5"
-    job: ". {{ clawdbot_home }}/.profile && openclaw update >> {{ clawdbot_home }}/logs/openclaw-update.log 2>&1"
+    hour: "*/6"
+    job: >-
+      HOME={{ clawdbot_home }}
+      PNPM_HOME={{ clawdbot_home }}/.local/share/pnpm
+      {{ clawdbot_home }}/.local/share/pnpm/pnpm add -g openclaw@latest >> {{ clawdbot_home }}/logs/openclaw-update.log 2>&1
+      && {{ clawdbot_home }}/.local/share/pnpm/openclaw gateway restart >> {{ clawdbot_home }}/logs/openclaw-update.log 2>&1
     state: present
 
 - name: Install OpenClaw shell completions for bash
@@ -56,18 +66,3 @@
     group: "{{ clawdbot_user }}"
     mode: '0644'
 
-- name: Install OpenClaw shell completions for zsh
-  ansible.builtin.shell: |
-    su - {{ clawdbot_user }} -c '{{ clawdbot_home }}/.local/share/pnpm/openclaw completions zsh > {{ clawdbot_home }}/.openclaw-completions.zsh 2>/dev/null || true'
-  args:
-    creates: "{{ clawdbot_home }}/.openclaw-completions.zsh"
-
-- name: Add zsh completion to .zshrc
-  ansible.builtin.lineinfile:
-    path: "{{ clawdbot_home }}/.zshrc"
-    line: '[ -f ~/.openclaw-completions.zsh ] && source ~/.openclaw-completions.zsh'
-    state: present
-    create: true
-    owner: "{{ clawdbot_user }}"
-    group: "{{ clawdbot_user }}"
-    mode: '0644'

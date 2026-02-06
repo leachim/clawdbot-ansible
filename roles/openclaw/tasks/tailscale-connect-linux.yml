@@ -36,6 +36,10 @@
   changed_when: tailscale_connect.rc == 0
   failed_when: false
 
+- name: Set openclaw as Tailscale operator
+  ansible.builtin.command: tailscale set --operator={{ clawdbot_user }}
+  changed_when: true
+
 - name: Display Tailscale connection failure
   ansible.builtin.debug:
     msg:

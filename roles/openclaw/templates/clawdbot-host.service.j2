@@ -1,41 +1,31 @@
 [Unit]
-Description=Clawdbot WhatsApp Gateway
-After=network.target docker.service
-Requires=docker.service
+Description=OpenClaw Gateway
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-User={{ clawdbot_user }}
-Group={{ clawdbot_user }}
 WorkingDirectory={{ clawdbot_home }}
 
 # Environment variables
-Environment="PATH={{ clawdbot_home }}/.local/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PATH={{ clawdbot_home }}/.local/share/pnpm:{{ clawdbot_home }}/.local/bin:{{ clawdbot_home }}/.npm-global/bin:{{ clawdbot_home }}/bin:{{ clawdbot_home }}/.nvm/current/bin:{{ clawdbot_home }}/.fnm/current/bin:{{ clawdbot_home }}/.volta/bin:{{ clawdbot_home }}/.asdf/shims:{{ clawdbot_home }}/.bun/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="PNPM_HOME={{ clawdbot_home }}/.local/share/pnpm"
-Environment="HOME={{ clawdbot_home }}"
-Environment="XDG_RUNTIME_DIR=/run/user/1000"
-
-# DBus session bus
-Environment="DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
 
 # Start command
+{% if clawdbot_install_mode == 'release' -%}
+ExecStart={{ clawdbot_home }}/.local/share/pnpm/openclaw gateway
+{% else -%}
 ExecStart={{ clawdbot_home }}/.local/bin/clawdbot gateway
+{% endif -%}
 
 # Restart policy
 Restart=always
-RestartSec=10
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths={{ clawdbot_home }}/.clawdbot
+RestartSec=5
 
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=clawdbot
+SyslogIdentifier=openclaw-gateway
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

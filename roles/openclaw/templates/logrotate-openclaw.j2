@@ -1,0 +1,17 @@
+{{ clawdbot_home }}/logs/*.log {
+    weekly
+    rotate 4
+    compress
+    missingok
+    notifempty
+    create 0644 {{ clawdbot_user }} {{ clawdbot_user }}
+}
+
+/var/log/system-update.log {
+    weekly
+    rotate 4
+    compress
+    missingok
+    notifempty
+    create 0644 root root
+}

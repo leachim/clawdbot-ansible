@@ -13,7 +13,7 @@
 
 - name: Copy GitHub deploy key (private)
   ansible.builtin.copy:
-    src: ~/.ssh/hetzner_openclaw
+    src: "{{ clawdbot_deploy_key_path }}"
     dest: "{{ clawdbot_home }}/.ssh/github_deploy"
     owner: "{{ clawdbot_user }}"
     group: "{{ clawdbot_user }}"
@@ -21,7 +21,7 @@
 
 - name: Copy GitHub deploy key (public)
   ansible.builtin.copy:
-    src: ~/.ssh/hetzner_openclaw.pub
+    src: "{{ clawdbot_deploy_key_path }}.pub"
     dest: "{{ clawdbot_home }}/.ssh/github_deploy.pub"
     owner: "{{ clawdbot_user }}"
     group: "{{ clawdbot_user }}"
@@ -58,18 +58,6 @@
     group: "{{ clawdbot_user }}"
     recurse: true
 
-- name: Debug - List data directory contents
-  ansible.builtin.shell: "ls -la {{ clawdbot_data_dir }}"
-  become: true
-  become_user: "{{ clawdbot_user }}"
-  become_method: su
-  register: data_dir_contents
-  changed_when: false
-
-- name: Debug - Show data directory contents
-  ansible.builtin.debug:
-    var: data_dir_contents.stdout_lines
-
 - name: Initialize git repo on data volume
   ansible.builtin.command:
     cmd: git init
@@ -78,11 +66,6 @@
   become: true
   become_user: "{{ clawdbot_user }}"
   become_method: su
-  register: git_init_result
-
-- name: Debug - Show git init result
-  ansible.builtin.debug:
-    var: git_init_result
 
 - name: Ensure .git directory has correct ownership
   ansible.builtin.file:
@@ -147,7 +130,7 @@
 
 - name: Add GitHub remote
   ansible.builtin.shell: |
-    cd {{ clawdbot_data_dir }} && git remote add origin git@github.com:leachim/openclaw-character.git
+    cd {{ clawdbot_data_dir }} && git remote add origin {{ clawdbot_backup_repo }}
   become: true
   become_user: "{{ clawdbot_user }}"
   become_method: su

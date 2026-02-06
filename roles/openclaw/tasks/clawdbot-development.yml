@@ -44,7 +44,7 @@
 
 - name: Install dependencies with pnpm
   ansible.builtin.shell:
-    cmd: pnpm install
+    cmd: "{{ clawdbot_home }}/.local/share/pnpm/pnpm install"
     chdir: "{{ clawdbot_repo_dir }}"
     executable: /bin/bash
   become: true
@@ -59,7 +59,7 @@
 
 - name: Build clawdbot from source
   ansible.builtin.shell:
-    cmd: pnpm build
+    cmd: "{{ clawdbot_home }}/.local/share/pnpm/pnpm build"
     chdir: "{{ clawdbot_repo_dir }}"
     executable: /bin/bash
   become: true

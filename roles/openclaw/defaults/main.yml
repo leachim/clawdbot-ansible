@@ -34,3 +34,7 @@ openclaw_repo_url: "https://github.com/openclaw/openclaw.git"
 openclaw_repo_branch: "main"
 clawdbot_code_dir: "{{ clawdbot_home }}/code"
 clawdbot_repo_dir: "{{ clawdbot_code_dir }}/openclaw"
+
+# Git backup settings
+clawdbot_backup_repo: "git@github.com:leachim/openclaw-character.git"
+clawdbot_deploy_key_path: "~/.ssh/hetzner_openclaw"

@@ -15,6 +15,14 @@
     autoclean: true
   when: ansible_facts['os_family'] == 'Debian'
 
+- name: Configure log rotation for OpenClaw and system logs
+  ansible.builtin.template:
+    src: logrotate-openclaw.j2
+    dest: /etc/logrotate.d/openclaw
+    owner: root
+    group: root
+    mode: '0644'
+
 - name: Create system update script
   ansible.builtin.template:
     src: system-update.sh.j2
@@ -32,11 +40,25 @@
     job: "/usr/local/bin/system-update.sh"
     state: present
 
-- name: Set up cron job for daily server reboot (4:00am UTC)
+- name: Create conditional reboot script
+  ansible.builtin.template:
+    src: conditional-reboot.sh.j2
+    dest: /usr/local/bin/conditional-reboot.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Remove old unconditional daily reboot cron
   ansible.builtin.cron:
     name: "daily reboot"
     user: root
+    state: absent
+
+- name: Set up cron job for conditional reboot (4:00am UTC)
+  ansible.builtin.cron:
+    name: "conditional reboot"
+    user: root
     minute: "0"
     hour: "4"
-    job: "/sbin/reboot"
+    job: "/usr/local/bin/conditional-reboot.sh"
     state: present

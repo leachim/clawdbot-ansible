@@ -1,0 +1,9 @@
+#!/bin/bash
+# Reboot only if the system requires it (kernel update, library update, etc.)
+
+if [ -f /var/run/reboot-required ]; then
+  logger -t conditional-reboot "Reboot required, rebooting now"
+  /sbin/reboot
+else
+  logger -t conditional-reboot "No reboot required, skipping"
+fi

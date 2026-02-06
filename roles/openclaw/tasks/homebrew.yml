@@ -6,6 +6,17 @@
     path: "{{ '/opt/homebrew/bin/brew' if is_macos else '/home/linuxbrew/.linuxbrew/bin/brew' }}"
   register: homebrew_check
 
+- name: Create Homebrew prefix directory (Linux)
+  ansible.builtin.file:
+    path: /home/linuxbrew/.linuxbrew
+    state: directory
+    owner: "{{ clawdbot_user }}"
+    group: "{{ clawdbot_user }}"
+    mode: "0755"
+  when:
+    - not homebrew_check.stat.exists
+    - not is_macos
+
 - name: Install Homebrew (Linux)
   ansible.builtin.shell: |
     su - {{ clawdbot_user }} -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'

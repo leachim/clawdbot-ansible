@@ -24,19 +24,6 @@
     home: "{{ clawdbot_home }}"
     state: present
 
-- name: Get current shell for openclaw user
-  ansible.builtin.shell: "getent passwd {{ clawdbot_user }} | cut -d: -f7"
-  register: current_shell
-  changed_when: false
-
-- name: Display current shell
-  ansible.builtin.debug:
-    msg: "Current shell for {{ clawdbot_user }}: {{ current_shell.stdout }}"
-
-- name: Change shell to bash with usermod
-  ansible.builtin.command: usermod -s /bin/bash {{ clawdbot_user }}
-  when: current_shell.stdout != '/bin/bash'
-
 - name: Ensure home directory has correct ownership
   ansible.builtin.file:
     path: "{{ clawdbot_home }}"
@@ -45,27 +32,27 @@
     group: "{{ clawdbot_user }}"
     mode: '0755'
 
-- name: Add openclaw user to sudoers with NOPASSWD
+- name: Add openclaw user to sudoers with restricted NOPASSWD
   ansible.builtin.copy:
     dest: /etc/sudoers.d/openclaw
     mode: '0440'
     owner: root
     group: root
     content: |
-      # Allow openclaw user to run sudo without password
-      {{ clawdbot_user }} ALL=(ALL) NOPASSWD: ALL
+      # Allow openclaw user limited sudo without password
+      {{ clawdbot_user }} ALL=(ALL) NOPASSWD: /usr/bin/systemctl, /usr/bin/docker, /usr/bin/journalctl, /usr/bin/loginctl
     validate: /usr/sbin/visudo -cf %s
 
 # Fix DBus issues for systemd user services
 - name: Get openclaw user ID
   ansible.builtin.command: id -u {{ clawdbot_user }}
-  register: clawdbot_uid
+  register: clawdbot_uid_result
   changed_when: false
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Display openclaw user ID
   ansible.builtin.debug:
-    msg: "OpenClaw user ID: {{ clawdbot_uid.stdout }}"
+    msg: "OpenClaw user ID: {{ clawdbot_uid_result.stdout }}"
   when: ansible_facts['os_family'] == 'Debian'
 
 - name: Enable lingering for openclaw user (allows systemd user services without login)
@@ -75,7 +62,7 @@
 
 - name: Create runtime directory for openclaw user
   ansible.builtin.file:
-    path: "/run/user/{{ clawdbot_uid.stdout }}"
+    path: "/run/user/{{ clawdbot_uid_result.stdout }}"
     state: directory
     owner: "{{ clawdbot_user }}"
     group: "{{ clawdbot_user }}"
@@ -84,7 +71,7 @@
 
 - name: Store openclaw UID as fact for later use
   ansible.builtin.set_fact:
-    clawdbot_uid_value: "{{ clawdbot_uid.stdout }}"
+    clawdbot_uid_value: "{{ clawdbot_uid_result.stdout }}"
   when: ansible_facts['os_family'] == 'Debian'
 
 # SSH key configuration
