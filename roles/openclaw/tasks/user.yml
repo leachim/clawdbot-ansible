@@ -101,6 +101,85 @@
     msg: "No SSH keys configured. Set 'clawdbot_ssh_keys' variable to allow SSH access."
   when: clawdbot_ssh_keys | length == 0
 
+# Darwin user setup
+- name: Create darwin user
+  ansible.builtin.user:
+    name: darwin
+    comment: "Darwin User"
+    shell: /bin/bash
+    create_home: true
+    home: /home/darwin
+    state: present
+
+- name: Create .ssh directory for darwin user
+  ansible.builtin.file:
+    path: /home/darwin/.ssh
+    state: directory
+    owner: darwin
+    group: darwin
+    mode: '0700'
+
+- name: Add SSH authorized keys for darwin user
+  ansible.builtin.authorized_key:
+    user: darwin
+    state: present
+    key: "{{ item }}"
+  loop: "{{ clawdbot_ssh_keys }}"
+  when: clawdbot_ssh_keys | length > 0
+
+- name: Create .bash_profile for darwin user
+  ansible.builtin.copy:
+    dest: /home/darwin/.bash_profile
+    owner: darwin
+    group: darwin
+    mode: '0644'
+    content: |
+      # Source .bashrc for interactive login shells (SSH)
+      if [ -f "$HOME/.bashrc" ]; then
+        . "$HOME/.bashrc"
+      fi
+
+# SSH daemon hardening
+- name: Disable password authentication in sshd
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+  when: ansible_facts['os_family'] != 'Darwin'
+
+- name: Disable challenge-response authentication in sshd
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ChallengeResponseAuthentication|^#?KbdInteractiveAuthentication'
+    line: 'KbdInteractiveAuthentication no'
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+  when: ansible_facts['os_family'] != 'Darwin'
+
+- name: Ensure PubkeyAuthentication is enabled in sshd
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PubkeyAuthentication'
+    line: 'PubkeyAuthentication yes'
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+  when: ansible_facts['os_family'] != 'Darwin'
+
+- name: Disable root password login (permit key only)
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin prohibit-password'
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: restart sshd
+  when: ansible_facts['os_family'] != 'Darwin'
+
 - name: Add bash guard at beginning of .bashrc
   ansible.builtin.blockinfile:
     path: "{{ clawdbot_home }}/.bashrc"
